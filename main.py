@@ -1,5 +1,230 @@
 import tkinter as tk
 from tkinter import *
+import json
+import os
+from tkinter import messagebox
+from tkinter import ttk
+
+def save_to_play_list(tree):
+    games = [tree.item(item)["values"][0] for item in tree.get_children()]
+    with open("Data/ToPlay.json", "w", encoding="utf-8") as file:
+        json.dump(games, file, ensure_ascii=False, indent=4)
+
+def show_to_play_window():
+    play_window = Toplevel()
+    play_window.title("🎮 To-Play")
+    play_window.geometry("520x480")
+    play_window.configure(bg="#b1cdd1")
+
+    title_label = Label(play_window, text="🎮 To-Play", font=("Segoe UI", 16, "bold"), bg="#b1cdd1")
+    title_label.pack(pady=(10, 5))
+
+    top_frame = Frame(play_window, bg="#b1cdd1")
+    top_frame.pack(pady=(0, 10))
+
+    entry = Entry(top_frame, font=("Segoe UI", 11), width=25)
+    entry.grid(row=0, column=0, padx=(10, 10), pady=5)
+
+    columns = ("#1",)
+    tree = ttk.Treeview(play_window, columns=columns, show="headings", height=15)
+    tree.heading("#1", text="Game Name")
+    tree.column("#1", anchor="center", width=480)
+    tree.pack(padx=10, pady=(0, 10))
+
+
+    style = ttk.Style()
+    style.theme_use("default")
+    style.configure("Treeview",
+                    rowheight=32,
+                    font=("Segoe UI", 11),
+                    background="#f0f8ff",
+                    fieldbackground="#f0f8ff")
+
+    style.configure("Treeview.Heading",
+                    font=("Segoe UI", 12, "bold"),
+                    background="#4b798b",
+                    foreground="black")
+
+    # Ek olarak satır düzenini koru
+    tree.tag_configure('evenrow', background="#f7f7f7")
+    tree.tag_configure('oddrow', background="#e6e6e6")
+
+    def refresh_tags():
+        for index, item in enumerate(tree.get_children()):
+            tag = 'evenrow' if index % 2 == 0 else 'oddrow'
+            tree.item(item, tags=(tag,))
+
+    def add_game():
+        game = entry.get().strip()
+        if game:
+            index = len(tree.get_children())
+            tag = 'evenrow' if index % 2 == 0 else 'oddrow'
+            tree.insert("", "end", values=(game,), tags=(tag,))
+
+            entry.delete(0, END)
+            refresh_tags()
+            save_to_play_list(tree)
+
+
+    def edit_game():
+        selected = tree.selection()
+        if not selected:
+            messagebox.showinfo("No Selection", "Please select a game to edit.", parent=play_window)
+            return
+
+        old_value = tree.item(selected[0])['values'][0]
+
+        edit_popup = Toplevel(play_window)
+        edit_popup.title("Edit Game")
+        edit_popup.geometry("350x150")
+        edit_popup.configure(bg="#e0f0f5")
+        edit_popup.grab_set()
+
+        Label(edit_popup, text="Please edit the name:", bg="#e0f0f5", font=("Arial", 11)).pack(pady=(15, 5))
+        edit_entry = Entry(edit_popup, font=("Arial", 12), width=30)
+        edit_entry.insert(0, old_value)
+        edit_entry.pack(pady=5)
+
+        def save_edit():
+            new_value = edit_entry.get().strip()
+            if new_value:
+                tree.item(selected[0], values=(new_value,))
+                refresh_tags()
+                save_to_play_list(tree)
+                edit_popup.destroy()
+            else:
+                messagebox.showwarning("Empty", "Name cannot be empty.", parent=edit_popup)
+
+        Button(edit_popup, text="Save", width=10, command=save_edit).pack(pady=(10, 5))
+        Button(edit_popup, text="Cancel", width=10, command=edit_popup.destroy).pack()
+
+    def delete_game():
+        selected = tree.selection()
+        if selected:
+            game = tree.item(selected[0])['values'][0]
+            confirm = messagebox.askyesno("Confirm Delete", f"Are you sure you want to delete '{game}'?", parent=play_window)
+            if confirm:
+                tree.delete(selected[0])
+                refresh_tags()
+                save_to_play_list(tree)
+
+    Button(top_frame, text="Add", command=add_game, width=8).grid(row=0, column=1, padx=2)
+    Button(top_frame, text="Edit", command=edit_game, width=8).grid(row=0, column=2, padx=2)
+    Button(top_frame, text="Delete", command=delete_game, width=8).grid(row=0, column=3, padx=2)
+
+    # JSON'dan veri yükle
+    if os.path.exists("Data/ToPlay.json"):
+        with open("Data/ToPlay.json", "r", encoding="utf-8") as file:
+            games = json.load(file)
+            for i, game in enumerate(games):
+                tag = 'evenrow' if i % 2 == 0 else 'oddrow'
+                tree.insert("", "end", values=(game,), tags=(tag,))
+
+    return play_window
+
+def save_to_watch_list(tree):
+    films = [tree.item(item)["values"][0] for item in tree.get_children()]
+    with open("Data/ToWatch.json", "w", encoding="utf-8") as file:
+        json.dump(films, file, ensure_ascii=False, indent=4)
+
+def show_to_watch_window():
+    watch_window = Toplevel()
+    watch_window.title("🎬 To-Watch")
+    watch_window.geometry("520x480")
+    watch_window.configure(bg="#b1cdd1")
+
+    title_label = Label(watch_window, text="🎬 To-Watch", font=("Segoe UI", 16, "bold"), bg="#b1cdd1")
+    title_label.pack(pady=(10, 5))
+
+    top_frame = Frame(watch_window, bg="#b1cdd1")
+    top_frame.pack(pady=(0, 10))
+
+    entry = Entry(top_frame, font=("Segoe UI", 11), width=25)
+    entry.grid(row=0, column=0, padx=(10, 10), pady=5)
+
+    columns = ("#1",)
+    tree = ttk.Treeview(watch_window, columns=columns, show="headings", height=15)
+    tree.heading("#1", text="Film Name")
+    tree.column("#1", anchor="center", width=480)
+    tree.pack(padx=10, pady=(0, 10))
+
+    style = ttk.Style()
+    style.theme_use("default")
+    style.configure("Treeview", rowheight=28, font=("Segoe UI", 11))
+    style.configure("Treeview.Heading", font=("Segoe UI", 12, "bold"), background="#4b798b", foreground="black")
+
+    tree.tag_configure('evenrow', background="#f7f7f7")
+    tree.tag_configure('oddrow', background="#e6e6e6")
+
+    def add_film():
+        film = entry.get().strip()
+        if film:
+            index = len(tree.get_children())
+            tag = 'evenrow' if index % 2 == 0 else 'oddrow'
+            tree.insert("", "end", values=(film,), tags=(tag,))
+            entry.delete(0, END)
+            save_to_watch_list(tree)
+
+    def edit_film():
+        selected = tree.selection()
+        if not selected:
+            messagebox.showinfo("No Selection", "Please select a film to edit.", parent=watch_window)
+            return
+
+        old_value = tree.item(selected[0])['values'][0]
+
+        edit_popup = Toplevel(watch_window)
+        edit_popup.title("Edit Film")
+        edit_popup.geometry("350x150")
+        edit_popup.configure(bg="#e0f0f5")
+        edit_popup.grab_set()
+
+        Label(edit_popup, text="Please edit the name:", bg="#e0f0f5", font=("Arial", 11)).pack(pady=(15, 5))
+        edit_entry = Entry(edit_popup, font=("Arial", 12), width=30)
+        edit_entry.insert(0, old_value)
+        edit_entry.pack(pady=5)
+
+        def save_edit():
+            new_value = edit_entry.get().strip()
+            if new_value:
+                tree.item(selected[0], values=(new_value,))
+                save_to_watch_list(tree)
+                edit_popup.destroy()
+            else:
+                messagebox.showwarning("Empty", "Name cannot be empty.", parent=edit_popup)
+
+        Button(edit_popup, text="Save", width=10, command=save_edit).pack(pady=(10, 5))
+        Button(edit_popup, text="Cancel", width=10, command=edit_popup.destroy).pack()
+
+    def delete_film():
+        selected = tree.selection()
+        if selected:
+            film = tree.item(selected[0])['values'][0]
+            confirm = messagebox.askyesno("Confirm Delete", f"Are you sure you want to delete '{film}'?", parent=watch_window)
+            if confirm:
+                tree.delete(selected[0])
+                save_to_watch_list(tree)
+
+    Button(top_frame, text="Add", command=add_film, width=8).grid(row=0, column=1, padx=2)
+    Button(top_frame, text="Edit", command=edit_film, width=8).grid(row=0, column=2, padx=2)
+    Button(top_frame, text="Delete", command=delete_film, width=8).grid(row=0, column=3, padx=2)
+
+    # JSON’dan yükle
+    if os.path.exists("Data/ToWatch.json"):
+        with open("Data/ToWatch.json", "r", encoding="utf-8") as file:
+            films = json.load(file)
+            for i, film in enumerate(films):
+                tag = 'evenrow' if i % 2 == 0 else 'oddrow'
+                tree.insert("", "end", values=(film,), tags=(tag,))
+
+    return watch_window
+
+
+
+
+
+
+
 
 def show_help(lang):
     if lang == "eng":
@@ -119,6 +344,7 @@ about_button.config(activebackground="#8B8000", activeforeground="black")
 about_button.place(x=980, y=10)
 about_button.place(relx=1.0, x=-10, y=10, anchor="ne")
 
+
 label = tk.Label(window, text="Welcome to the Games/Films Tracker!",
                  font=("Arial", 25),
                  bg="#b5a9a8",
@@ -135,11 +361,9 @@ image_label = tk.Label(window, image=photo, bg="#b5a9a8")
 image_label.image = photo
 image_label.pack(pady=(1, 0), padx=1)
 
-
-
-
 button_frame = Frame(window, bg="#b5a9a8")
 button_frame.pack()
+
 
 # Satır 1: Games ve Films
 btn_games = Button(button_frame, image=game_icon,
@@ -154,16 +378,17 @@ btn_films = Button(button_frame, image=film_icon,
 btn_films.image = film_icon
 btn_films.grid(row=0, column=1, padx=30, pady=10)
 
+
 # Satır 2: To-Play ve To-Watch
-
-
 btn_to_play = Button(button_frame, text="To-Play", width=20, height=2, font=("Arial", 12), bg="#756f6e", fg="white")
 btn_to_play.grid(row=1, column=0, padx=30, pady=10)
 btn_to_play.config(activebackground="gray", activeforeground="white")
+btn_to_play.config(command=show_to_play_window)
 
 btn_to_watch = Button(button_frame, text="To-Watch", width=20, height=2, font=("Arial", 12), bg="#756f6e", fg="white")
 btn_to_watch.grid(row=1, column=1, padx=30, pady=10)
 btn_to_watch.config(activebackground="gray", activeforeground="white")
+btn_to_watch.config(command=show_to_watch_window)
 
 
 
