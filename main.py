@@ -4,6 +4,319 @@ import json
 import os
 from tkinter import messagebox
 from tkinter import ttk
+from Games.GamesUtil import sort_games
+from Films.FilmsUtil import sort_films
+
+
+def save_game_list(tree):
+    data = [tree.item(item)["values"] for item in tree.get_children()]
+    with open("Data/games.json", "w", encoding="utf-8") as file:
+        json.dump(data, file, ensure_ascii=False, indent=4)
+
+def show_game_window():
+    game_window = Toplevel()
+    game_window.title("🎮 Games")
+    game_window.geometry("1095x720")
+    game_window.configure(bg="#b1cdd1")
+
+    Label(game_window, text="🎮 Games", font=("Segoe UI", 19, "bold"), bg="#b1cdd1").pack(pady=10)
+
+    top_frame = Frame(game_window, bg="#b1cdd1")
+    top_frame.pack()
+
+    search_entry = Entry(top_frame, font=("Segoe UI", 12), width=50)
+    search_entry.grid(row=0, column=0, padx=5, pady=10)
+
+    columns = ("Name", "Genre", "Year", "Your Score", "Metacritic")
+    tree_frame = Frame(game_window)
+    tree_frame.pack(padx=10, pady=10, fill=BOTH, expand=True)
+
+    tree_scroll = Scrollbar(tree_frame)
+    tree_scroll.pack(side=RIGHT, fill=Y)
+
+    tree = ttk.Treeview(tree_frame, columns=columns, show="headings", height=20, yscrollcommand=tree_scroll.set)
+    tree_scroll.config(command=tree.yview)
+
+    for col in columns:
+        tree.heading(col, text=col, command=lambda c=col: sort_games(tree, c))
+        tree.column(col, anchor="center", width=210)
+
+    tree.pack(fill=BOTH, expand=True)
+
+    style = ttk.Style()
+    style.configure("Treeview", rowheight=30, font=("Segoe UI", 11))
+    style.configure("Treeview.Heading", font=("Segoe UI", 12, "bold"), background="#4b798b", foreground="black")
+
+    def refresh_tags():
+        for i, item in enumerate(tree.get_children()):
+            tag = 'evenrow' if i % 2 == 0 else 'oddrow'
+            tree.item(item, tags=(tag,))
+        tree.tag_configure('evenrow', background="#f7f7f7")
+        tree.tag_configure('oddrow', background="#e6e6e6")
+
+    def search():
+        query = search_entry.get().lower()
+        for item in tree.get_children():
+            tree.delete(item)
+        if os.path.exists("Data/games.json"):
+            with open("Data/games.json", "r", encoding="utf-8") as file:
+                data = json.load(file)
+                for row in data:
+                    if any(query in str(cell).lower() for cell in row):
+                        tree.insert("", "end", values=row)
+        refresh_tags()
+
+    def open_game_popup(mode, selected=None):
+        popup = Toplevel(game_window)
+        popup.title("Add Game" if mode == "add" else "Edit Game")
+        popup.geometry("450x420")
+        popup.configure(bg="#e0f0f5")
+        popup.grab_set()
+
+        fields = ["Name", "Genre", "Year", "Your Score", "Metacritic"]
+        entries = []
+
+        Label(
+            popup,
+            text="Please fill in the details:" if mode == "add" else "Edit game details:",
+            bg="#e0f0f5",
+            font=("Arial", 12, "bold")
+        ).pack(pady=10)
+
+        for i, field in enumerate(fields):
+            Label(popup, text=field + ":", bg="#e0f0f5", font=("Arial", 11)).pack(pady=(5, 2))
+            ent = Entry(popup, font=("Arial", 12), width=30)
+            if mode == "edit" and selected:
+                ent.insert(0, tree.item(selected)['values'][i])
+            ent.pack()
+            entries.append(ent)
+
+        def save():
+            values = [e.get().strip() for e in entries]
+            if all(values):
+                try:
+                    year = int(values[2])
+                    if not (1970 <= year <= 2025):
+                        raise ValueError("Invalid Year")
+
+                    score = float(values[3])
+                    meta = float(values[4])
+                    if not (0.0 <= score <= 10.0 and 0.0 <= meta <= 10.0):
+                        raise ValueError("Invalid Score")
+                except ValueError:
+                    messagebox.showwarning("Invalid", "Year must be 1970–2025 and scores must be between 0.0 and 10.0.",
+                                           parent=popup)
+                    return
+
+                if mode == "add":
+                    tree.insert("", "end", values=values)
+                elif mode == "edit":
+                    tree.item(selected, values=values)
+
+                refresh_tags()
+                save_game_list(tree)
+                popup.destroy()
+            else:
+                messagebox.showwarning("Missing", "Please fill in all fields.", parent=popup)
+
+        Button(popup, text="Save", command=save, width=12, bg="#f7be20").pack(pady=15)
+
+    def add_game():
+        open_game_popup("add")
+
+    def edit_game():
+        selected = tree.selection()
+        if not selected:
+            messagebox.showinfo("No Selection", "Please select a game to edit.", parent=game_window)
+            return
+        open_game_popup("edit", selected[0])
+
+    def delete_game():
+        selected = tree.selection()
+        if not selected:
+            messagebox.showinfo("No Selection", "Please select a game to delete.", parent=game_window)
+            return
+
+        game = tree.item(selected[0])['values'][0]
+        confirm = messagebox.askyesno("Confirm Delete", f"Are you sure you want to delete '{game}'?",
+                                      parent=game_window)
+        if confirm:
+            tree.delete(selected[0])
+            refresh_tags()
+            save_game_list(tree)
+
+
+    Button(top_frame, text="Search", command=search, width=12, height=1).grid(row=0, column=1, padx=2)
+    Button(top_frame, text="Add", command=add_game, width=12, height=1).grid(row=0, column=2, padx=2)
+    Button(top_frame, text="Edit", command=edit_game, width=12, height=1).grid(row=0, column=3, padx=2)
+    Button(top_frame, text="Delete", command=delete_game, width=12, height=1).grid(row=0, column=4, padx=2)
+
+
+    if os.path.exists("Data/games.json"):
+        with open("Data/games.json", "r", encoding="utf-8") as file:
+            data = json.load(file)
+            for i, row in enumerate(data):
+                tag = 'evenrow' if i % 2 == 0 else 'oddrow'
+                tree.insert("", "end", values=row, tags=(tag,))
+    refresh_tags()
+
+def sort_column(tree, col, reverse):
+    data = [(tree.set(k, col), k) for k in tree.get_children()]
+    try:
+        data.sort(key=lambda t: float(t[0]), reverse=reverse)
+    except:
+        data.sort(key=lambda t: t[0], reverse=reverse)
+    for i, (val, k) in enumerate(data):
+        tree.move(k, '', i)
+    tree.heading(col, command=lambda: sort_column(tree, col, not reverse))
+
+
+
+
+
+def save_film_list(tree):
+    data = [tree.item(item)["values"] for item in tree.get_children()]
+    with open("Data/films.json", "w", encoding="utf-8") as file:
+        json.dump(data, file, ensure_ascii=False, indent=4)
+
+def show_film_window():
+    film_window = Toplevel()
+    film_window.title("🎬 Films")
+    film_window.geometry("1095x720")
+    film_window.configure(bg="#d9d5c4")
+
+    Label(film_window, text="🎬 Films", font=("Segoe UI", 19, "bold"), bg="#d9d5c4").pack(pady=10)
+
+    top_frame = Frame(film_window, bg="#d9d5c4")
+    top_frame.pack()
+
+    search_entry = Entry(top_frame, font=("Segoe UI", 12), width=50)
+    search_entry.grid(row=0, column=0, padx=5, pady=10)
+
+    columns = ("Name", "Genre", "Year", "Your Score", "IMDB")
+    tree = ttk.Treeview(film_window, columns=columns, show="headings", height=20)
+    for col in columns:
+        tree.heading(col, text=col, command=lambda c=col: sort_films(tree, c))
+        tree.column(col, anchor="center", width=210)
+
+    tree.pack(padx=10, pady=10, fill="both", expand=True)
+
+
+    style = ttk.Style()
+    style.configure("Treeview", rowheight=30, font=("Segoe UI", 11))
+    style.configure("Treeview.Heading", font=("Segoe UI", 12, "bold"), background="#a99e8e", foreground="black")
+
+    vsb = ttk.Scrollbar(film_window, orient="vertical", command=tree.yview)
+    tree.configure(yscrollcommand=vsb.set)
+    vsb.pack(side=RIGHT, fill=Y)
+
+    def refresh_tags():
+        for i, item in enumerate(tree.get_children()):
+            tag = 'evenrow' if i % 2 == 0 else 'oddrow'
+            tree.item(item, tags=(tag,))
+        tree.tag_configure('evenrow', background="#f7f7f7")
+        tree.tag_configure('oddrow', background="#e6e6e6")
+
+    def search():
+        query = search_entry.get().lower()
+        for item in tree.get_children():
+            tree.delete(item)
+        if os.path.exists("Data/films.json"):
+            with open("Data/films.json", "r", encoding="utf-8") as file:
+                data = json.load(file)
+                for row in data:
+                    if any(query in str(cell).lower() for cell in row):
+                        tree.insert("", "end", values=row)
+        refresh_tags()
+
+    def open_film_popup(mode, selected=None):
+        popup = Toplevel(film_window)
+        popup.title("Add Film" if mode == "add" else "Edit Film")
+        popup.geometry("450x420")
+        popup.configure(bg="#e8e4d9")
+        popup.grab_set()
+
+        fields = ["Name", "Genre", "Year", "Your Score", "IMDB"]
+        entries = []
+
+        Label(popup, text="Please fill in the details:" if mode == "add" else "Edit film details:",
+              bg="#e8e4d9", font=("Arial", 12, "bold")).pack(pady=10)
+
+        for i, field in enumerate(fields):
+            Label(popup, text=field + ":", bg="#e8e4d9", font=("Arial", 11)).pack(pady=(5, 2))
+            ent = Entry(popup, font=("Arial", 12), width=30)
+            if mode == "edit" and selected:
+                ent.insert(0, tree.item(selected)['values'][i])
+            ent.pack()
+            entries.append(ent)
+
+        def save():
+            values = [e.get().strip() for e in entries]
+            if all(values):
+                try:
+                    year = int(values[2])
+                    if not (1900 <= year <= 2025):
+                        raise ValueError("Invalid Year")
+                    score = float(values[3])
+                    imdb = float(values[4])
+                    if not (0.0 <= score <= 10.0 and 0.0 <= imdb <= 10.0):
+                        raise ValueError("Invalid Score")
+                except ValueError:
+                    messagebox.showwarning("Invalid", "Year must be 1900–2025 and scores between 0.0 and 10.0.", parent=popup)
+                    return
+
+                if mode == "add":
+                    tree.insert("", "end", values=values)
+                elif mode == "edit":
+                    tree.item(selected, values=values)
+
+                refresh_tags()
+                save_film_list(tree)
+                popup.destroy()
+            else:
+                messagebox.showwarning("Missing", "Please fill in all fields.", parent=popup)
+
+        Button(popup, text="Save", command=save, width=12, bg="#ffc94a").pack(pady=15)
+
+    def add_film():
+        open_film_popup("add")
+
+    def edit_film():
+        selected = tree.selection()
+        if not selected:
+            messagebox.showinfo("No Selection", "Please select a film to edit.", parent=film_window)
+            return
+        open_film_popup("edit", selected[0])
+
+    def delete_film():
+        selected = tree.selection()
+        if not selected:
+            messagebox.showinfo("No Selection", "Please select a film to delete.", parent=film_window)
+            return
+        film = tree.item(selected[0])['values'][0]
+        confirm = messagebox.askyesno("Confirm Delete", f"Are you sure you want to delete '{film}'?", parent=film_window)
+        if confirm:
+            tree.delete(selected[0])
+            refresh_tags()
+            save_film_list(tree)
+
+    Button(top_frame, text="Search", command=search, width=12, height=1).grid(row=0, column=1, padx=2)
+    Button(top_frame, text="Add", command=add_film, width=12, height=1).grid(row=0, column=2, padx=2)
+    Button(top_frame, text="Edit", command=edit_film, width=12, height=1).grid(row=0, column=3, padx=2)
+    Button(top_frame, text="Delete", command=delete_film, width=12, height=1).grid(row=0, column=4, padx=2)
+
+    if os.path.exists("Data/films.json"):
+        with open("Data/films.json", "r", encoding="utf-8") as file:
+            data = json.load(file)
+            for i, row in enumerate(data):
+                tag = 'evenrow' if i % 2 == 0 else 'oddrow'
+                tree.insert("", "end", values=row, tags=(tag,))
+    refresh_tags()
+
+
+
+
+
 
 def save_to_play_list(tree):
     games = [tree.item(item)["values"][0] for item in tree.get_children()]
@@ -45,7 +358,6 @@ def show_to_play_window():
                     background="#4b798b",
                     foreground="black")
 
-    # Ek olarak satır düzenini koru
     tree.tag_configure('evenrow', background="#f7f7f7")
     tree.tag_configure('oddrow', background="#e6e6e6")
 
@@ -112,7 +424,7 @@ def show_to_play_window():
     Button(top_frame, text="Edit", command=edit_game, width=8).grid(row=0, column=2, padx=2)
     Button(top_frame, text="Delete", command=delete_game, width=8).grid(row=0, column=3, padx=2)
 
-    # JSON'dan veri yükle
+    # JSON'dan veri yüklemek
     if os.path.exists("Data/ToPlay.json"):
         with open("Data/ToPlay.json", "r", encoding="utf-8") as file:
             games = json.load(file)
@@ -209,7 +521,7 @@ def show_to_watch_window():
     Button(top_frame, text="Edit", command=edit_film, width=8).grid(row=0, column=2, padx=2)
     Button(top_frame, text="Delete", command=delete_film, width=8).grid(row=0, column=3, padx=2)
 
-    # JSON’dan yükle
+    # JSON’dan yüklemek
     if os.path.exists("Data/ToWatch.json"):
         with open("Data/ToWatch.json", "r", encoding="utf-8") as file:
             films = json.load(file)
@@ -236,9 +548,8 @@ This guide will help you use each section of the application effectively:
 - Click the joystick image button to access your played games.
 - In the games table, you can view:
   • Game name
-  • Release year
-  • Developer
-  • Platforms
+  • Genre
+  • Release Year
   • Your score
   • Metacritic score
 - You can add, edit, or delete games.
@@ -250,7 +561,6 @@ This guide will help you use each section of the application effectively:
   • Film name
   • Genre
   • Release year
-  • Lead actor
   • Your score
   • IMDb score
 - You can add, edit, or delete films.
@@ -300,7 +610,7 @@ icon= PhotoImage(file='games-films.png')
 window.iconphoto(True, icon)
 window.configure(background="#b5a9a8")
 game_icon = PhotoImage(file="ps4.png")
-game_icon = game_icon.subsample(6, 6)  # Gerekirse oranı artır, 8x8 gibi
+game_icon = game_icon.subsample(6, 6)  # Oran arttırmak
 film_icon = PhotoImage(file="filmphoto.png")
 film_icon = film_icon.subsample(6, 6)
 
@@ -321,7 +631,7 @@ help_button.bind("<Button-1>", open_help_menu)
 def show_about():
     about_window = Toplevel(window)
     about_window.title("About")
-    about_window.configure(bg="#8B8680")
+    about_window.configure(bg="#514da1")
     about_window.geometry("400x150")
     about_window.resizable(False, False)
 
@@ -329,7 +639,7 @@ def show_about():
         about_window,
         text="This application is designed for your personal game and movie collection.\n\nBu uygulama kişisel oyun ve film koleksiyonunuz için tasarlanmıştır.",
         font=("Arial", 11),
-        bg="#8B8680",
+        bg="#514da1",
         fg="white",
         justify="center",
         wraplength=360,
@@ -355,7 +665,7 @@ label = tk.Label(window, text="Welcome to the Games/Films Tracker!",
 label.pack(pady=15)
 
 photo = PhotoImage(file='games-films-tracker.png')
-photo = photo.subsample(2, 2)  # Görseli 2 kat küçült
+photo = photo.subsample(2, 2)
 
 image_label = tk.Label(window, image=photo, bg="#b5a9a8")
 image_label.image = photo
@@ -365,21 +675,24 @@ button_frame = Frame(window, bg="#b5a9a8")
 button_frame.pack()
 
 
-# Satır 1: Games ve Films
+#Games and Films
 btn_games = Button(button_frame, image=game_icon,
                    width=250, height=150,
                    bg="white", bd=2, relief=RAISED)
-btn_games.image = game_icon  # referansı tutmayı unutma!
+btn_games.image = game_icon  # referans
 btn_games.grid(row=0, column=0, padx=30, pady=10)
+btn_games.config(command=show_game_window)
+
 
 btn_films = Button(button_frame, image=film_icon,
                    width=250, height=150,
                    bg="white", bd=2, relief=RAISED)
 btn_films.image = film_icon
 btn_films.grid(row=0, column=1, padx=30, pady=10)
+btn_films.config(command=show_film_window)
 
 
-# Satır 2: To-Play ve To-Watch
+#To-Play and To-Watch
 btn_to_play = Button(button_frame, text="To-Play", width=20, height=2, font=("Arial", 12), bg="#756f6e", fg="white")
 btn_to_play.grid(row=1, column=0, padx=30, pady=10)
 btn_to_play.config(activebackground="gray", activeforeground="white")
