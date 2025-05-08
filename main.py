@@ -6,6 +6,9 @@ from tkinter import messagebox
 from tkinter import ttk
 from Games.GamesUtil import sort_games
 from Films.FilmsUtil import sort_films
+from tkinter import filedialog
+import shutil
+import re
 
 
 def save_game_list(tree):
@@ -27,7 +30,7 @@ def show_game_window():
     search_entry = Entry(top_frame, font=("Segoe UI", 12), width=50)
     search_entry.grid(row=0, column=0, padx=5, pady=10)
 
-    columns = ("Name", "Genre", "Year", "Your Score", "Metacritic")
+    columns = ("Name", "Genre", "Year", "Your Score", "Metacritic", "Image")
     tree_frame = Frame(game_window)
     tree_frame.pack(padx=10, pady=10, fill=BOTH, expand=True)
 
@@ -47,6 +50,47 @@ def show_game_window():
     style.configure("Treeview", rowheight=30, font=("Segoe UI", 11))
     style.configure("Treeview.Heading", font=("Segoe UI", 12, "bold"), background="#4b798b", foreground="black")
 
+    def show_game_details(event):
+        selected = tree.selection()
+        if not selected:
+            return
+
+        values = tree.item(selected[0])['values']
+        if len(values) < 6:
+            return
+
+        name, genre, year, your_score, meta_score, image_file = values
+
+        detail_popup = Toplevel(game_window)
+        detail_popup.title(name)
+        detail_popup.configure(bg="#f0f0f0")
+        detail_popup.geometry("700x750")
+        detail_popup.resizable(False, False)
+
+        Label(detail_popup, text=name, font=("Segoe UI", 18, "bold"), bg="#f0f0f0").pack(pady=(15, 10))
+
+        try:
+            image_path = os.path.join("Images", "Games", image_file)
+            if os.path.exists(image_path):
+                img = PhotoImage(file=image_path)
+                img = img.subsample(2, 2)
+                image_label = Label(detail_popup, image=img, bg="#f0f0f0")
+                image_label.image = img
+                image_label.pack(pady=10)
+            else:
+                Label(detail_popup, text="Image not found.", fg="red", bg="#f0f0f0").pack(pady=10)
+        except Exception as e:
+            Label(detail_popup, text=f"Error loading image: {e}", fg="red", bg="#f0f0f0").pack(pady=10)
+
+        info_text = f"""  
+    🎮 Genre: {genre}
+    📅 Year: {year}
+    🎯 Your Score: {your_score}
+    ⭐Metacritic: {meta_score}""".strip()
+
+        Label(detail_popup, text=info_text, justify="left", font=("Times New Roman", 15, "italic"), bg="#f0f0f0").pack(pady=10)
+
+    tree.bind("<Double-1>", show_game_details)
     def refresh_tags():
         for i, item in enumerate(tree.get_children()):
             tag = 'evenrow' if i % 2 == 0 else 'oddrow'
@@ -69,12 +113,13 @@ def show_game_window():
     def open_game_popup(mode, selected=None):
         popup = Toplevel(game_window)
         popup.title("Add Game" if mode == "add" else "Edit Game")
-        popup.geometry("450x420")
+        popup.geometry("450x500")
         popup.configure(bg="#e0f0f5")
         popup.grab_set()
 
         fields = ["Name", "Genre", "Year", "Your Score", "Metacritic"]
         entries = []
+        selected_image = [None]
 
         Label(
             popup,
@@ -86,13 +131,39 @@ def show_game_window():
         for i, field in enumerate(fields):
             Label(popup, text=field + ":", bg="#e0f0f5", font=("Arial", 11)).pack(pady=(5, 2))
             ent = Entry(popup, font=("Arial", 12), width=30)
-            if mode == "edit" and selected:
-                ent.insert(0, tree.item(selected)['values'][i])
             ent.pack()
             entries.append(ent)
 
+        # image_label'ı ÖNCE tanımla
+        image_label = Label(popup, text="No image selected", bg="#e0f0f5", fg="gray", font=("Arial", 10))
+        image_label.pack()
+
+        # Eğer edit modundaysak, alanları doldur ve görseli ata
+        if mode == "edit" and selected:
+            existing_values = tree.item(selected)["values"]
+            for i in range(len(fields)):
+                entries[i].insert(0, existing_values[i])
+
+            if len(existing_values) > 5:
+                selected_image[0] = os.path.join("Images", "Games", existing_values[5])
+                image_label.config(text=existing_values[5], fg="green")
+        def choose_image():
+            file_path = filedialog.askopenfilename(filetypes=[("PNG files", "*.png")])
+            if file_path and file_path.lower().endswith(".png"):
+                selected_image[0] = file_path
+                image_label.config(text=os.path.basename(file_path), fg="green")
+            else:
+                messagebox.showwarning("Format Error", "Please select a .png file only.", parent=popup)
+
+
+
+        Button(popup, text="Select Image", command=choose_image, bg="#b0c4de").pack(pady=10)
+
         def save():
             values = [e.get().strip() for e in entries]
+            if not selected_image[0]:
+                messagebox.showwarning("Image Missing", "Please select a PNG image before saving.", parent=popup)
+                return
             if all(values):
                 try:
                     year = int(values[2])
@@ -107,6 +178,16 @@ def show_game_window():
                     messagebox.showwarning("Invalid", "Year must be 1970–2025 and scores must be between 0.0 and 10.0.",
                                            parent=popup)
                     return
+
+                image_name = os.path.basename(selected_image[0])
+                image_dest = os.path.join("Images", "Games", image_name)
+
+                # Edit modundaysa ve görsel zaten proje içindeyse tekrar kopyalama
+                if mode == "add" or not os.path.exists(image_dest):
+                    os.makedirs("Images/Games", exist_ok=True)
+                    shutil.copy(selected_image[0], image_dest)
+                values.append(image_name)  # Görsel adını values'a ekle
+
 
                 if mode == "add":
                     tree.insert("", "end", values=values)
@@ -541,64 +622,52 @@ def show_to_watch_window():
 def show_help(lang):
     if lang == "eng":
         help_text = """
-Welcome to the Games and Films Tracker!
-This guide will help you use each section of the application effectively:
+Welcome to the Games & Films Tracker!
+Here’s what you can do in this app:
 
-🎮 Games Section:
-- Click the joystick image button to access your played games.
-- In the games table, you can view:
-  • Game name
-  • Genre
-  • Release Year
-  • Your score
-  • Metacritic score
-- You can add, edit, or delete games.
-- If you plan to play a game in the future, click the "To-Play" button and add it to your planned list.
+🎮 Games Section
 
-🎬 Films Section:
-- Click the Films button to manage your watched films.
-- In the films table, you can view:
-  • Film name
-  • Genre
-  • Release year
-  • Your score
-  • IMDb score
-- You can add, edit, or delete films.
+Firstly click the "joystick" image.
+You can add games with name, genre, release year, your score, Metacritic score and an image from there.
+You can edit or delete them anytime.
+Click the column titles (Year, Score, etc.) to sort: descending, ascending, or original order.
+Use the search bar to find games by name, genre, or score.
+Double click to see the game's photo and information.
+
+🎬 Films Section
+
+This time please click the "Films" image.
+Same as games, but with IMDb score instead of Metacritic.
+Year range is from 1900 to 2025.
 - If you plan to watch a movie later, add it to the "To-Watch" list so you don't forget.
         """
     else:
         help_text = """
-    Games and Films Tracker'a Hoş Geldiniz!
-    Bu rehber, uygulamanın bölümlerini nasıl kullanacağınızı açıklar:
+Games & Films Tracker'a Hoş Geldiniz!
+Uygulamada neler yapabileceğinizi kısaca anlatalım:
 
-    🎮 Oyunlar Bölümü:
-    - Bitirmiş olduğunuz oyunlara ulaşmak için oyun kolu simgesine tıklayın.
-    - Oyunlar tablosunda şunları görüntüleyebilirsiniz:
-      • Oyun adı
-      • Çıkış yılı
-      • Geliştirici
-      • Platformlar
-      • Kendi puanınız
-      • Metacritic puanı
-    - Oyunları ekleyebilir, düzenleyebilir veya silebilirsiniz.
-    - Gelecekte oynamayı düşündüğünüz oyunlar için "To-Play" butonuna tıklayarak liste oluşturabilirsiniz.
+🎮 Oyunlar Bölümü
 
-    🎬 Filmler Bölümü:
-    - İzlediğiniz filmleri yönetmek için Films butonuna tıklayın.
-    - Filmler tablosunda şunları görüntüleyebilirsiniz:
-      • Film adı
-      • Türü
-      • Çıkış yılı
-      • Başrol oyuncusu
-      • Kendi puanınız
-      • IMDb puanı
-    - Filmleri ekleyebilir, düzenleyebilir veya silebilirsiniz.
-    - Gelecekte izlemeyi düşündüğünüz filmleri "To-Watch" listesine ekleyerek unutmamış olursunuz.
+Öncelikle oyun kolu simgesine tıklayın.
+Buradan oyunları isim, tür, çıkış yılı, kendi puanınızı, Metacritic puanı ile ekleyebilirsiniz.
+Dilediğinizde düzenleyebilir veya silebilirsiniz.
+Yıl, Puan vb. sütun başlıklarına tıklayarak sırayla azalan, artan ya da orijinal sıraya geçebilirsiniz.
+Arama çubuğuyla oyunları isme, türe veya puana göre bulabilirsiniz.
+Oyunun üstüne çift tıklayarak oyunun fotoğrafını ve bilgilerini görebilirsiniz.
+Gelecekte oynamak istediğiniz oyunlar için ise "To-Play" kısmını kullanabilirsiniz.
+
+🎬 Filmler Bölümü
+
+Film görseline tıklayınız.
+Oyunlarla aynı şekilde çalışır, sadece IMDb puanı kullanılır.
+Yıl aralığı 1900–2025'tir.
+✅ Uygulama sayesinde izlediğiniz veya oynadığınız her şeyi düzenli biçimde takip edebilirsiniz.
+     Ayrıca gelecekte izlemeyi düşündüğünüz filmleri "To-Watch" listesine ekleyerek unutmamış olursunuz.
             """
 
     help_popup = Toplevel(window)
     help_popup.title("Help")
-    help_popup.geometry("675x610")
+    help_popup.geometry("680x510")
     help_popup.configure(bg="#65a6c2")
     Label(help_popup, text=help_text, bg="#65a6c2", justify="left", font=("Times New Roman", 12), anchor="w").pack(padx=20, pady=20)
 
