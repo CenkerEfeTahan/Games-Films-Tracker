@@ -274,14 +274,22 @@ def show_film_window():
     search_entry = Entry(top_frame, font=("Segoe UI", 12), width=50)
     search_entry.grid(row=0, column=0, padx=5, pady=10)
 
-    columns = ("Name", "Genre", "Year", "Your Score", "IMDB")
-    tree = ttk.Treeview(film_window, columns=columns, show="headings", height=20)
+    columns = ("Name", "Genre", "Year", "Your Score", "IMDB", "Image")
+
+    tree_frame = Frame(film_window)
+    tree_frame.pack(padx=10, pady=10, fill="both", expand=True)
+
+    tree_scroll = Scrollbar(tree_frame, orient="vertical")
+    tree_scroll.pack(side=RIGHT, fill=Y)
+
+    tree = ttk.Treeview(tree_frame, columns=columns, show="headings", height=20, yscrollcommand=tree_scroll.set)
+    tree_scroll.config(command=tree.yview)
+
     for col in columns:
         tree.heading(col, text=col, command=lambda c=col: sort_films(tree, c))
         tree.column(col, anchor="center", width=210)
 
-    tree.pack(padx=10, pady=10, fill="both", expand=True)
-
+    tree.pack(fill="both", expand=True)
 
     style = ttk.Style()
     style.configure("Treeview", rowheight=30, font=("Segoe UI", 11))
@@ -290,6 +298,51 @@ def show_film_window():
     vsb = ttk.Scrollbar(film_window, orient="vertical", command=tree.yview)
     tree.configure(yscrollcommand=vsb.set)
     vsb.pack(side=RIGHT, fill=Y)
+
+    def show_film_details(event):
+        selected = tree.selection()
+        if not selected:
+            return
+
+        values = tree.item(selected[0])['values']
+        if len(values) < 6:
+            return
+
+        name, genre, year, score, imdb, image_file = values
+
+        detail_popup = Toplevel(film_window)
+        detail_popup.title(name)
+        detail_popup.configure(bg="#f0f0f0")
+        detail_popup.geometry("650x750")
+        detail_popup.resizable(False, False)
+
+        Label(detail_popup, text=name, font=("Segoe UI", 20, "bold"), bg="#f0f0f0").pack(pady=(15, 10))
+
+        if image_file and image_file.lower() != "n/a":
+            image_path = os.path.join("Images", "Films", image_file)
+            if os.path.exists(image_path):
+                try:
+                    img = PhotoImage(file=image_path)
+                    img = img.subsample(2, 2)
+                    image_label = Label(detail_popup, image=img, bg="#f0f0f0")
+                    image_label.image = img
+                    image_label.pack(pady=10)
+                except:
+                    Label(detail_popup, text="Image error", fg="red", bg="#f0f0f0").pack(pady=10)
+            else:
+                Label(detail_popup, text="Image not found.", fg="gray", bg="#f0f0f0").pack(pady=10)
+        else:
+            Label(detail_popup, text="No image for this film.", fg="gray", bg="#f0f0f0").pack(pady=10)
+
+        info_text = f"""
+    🎬 Genre: {genre}
+    📅 Year: {year}
+    ⭐ Your Score: {score}
+    🎞 IMDB: {imdb}
+            """.strip()
+
+        Label(detail_popup, text=info_text, justify="left", font=("Segoe UI", 16, "italic"), bg="#f0f0f0").pack(pady=10)
+    tree.bind("<Double-1>", show_film_details)
 
     def refresh_tags():
         for i, item in enumerate(tree.get_children()):
@@ -313,12 +366,13 @@ def show_film_window():
     def open_film_popup(mode, selected=None):
         popup = Toplevel(film_window)
         popup.title("Add Film" if mode == "add" else "Edit Film")
-        popup.geometry("450x420")
+        popup.geometry("450x500")
         popup.configure(bg="#e8e4d9")
         popup.grab_set()
 
         fields = ["Name", "Genre", "Year", "Your Score", "IMDB"]
         entries = []
+        selected_image = [None]
 
         Label(popup, text="Please fill in the details:" if mode == "add" else "Edit film details:",
               bg="#e8e4d9", font=("Arial", 12, "bold")).pack(pady=10)
@@ -326,10 +380,30 @@ def show_film_window():
         for i, field in enumerate(fields):
             Label(popup, text=field + ":", bg="#e8e4d9", font=("Arial", 11)).pack(pady=(5, 2))
             ent = Entry(popup, font=("Arial", 12), width=30)
-            if mode == "edit" and selected:
-                ent.insert(0, tree.item(selected)['values'][i])
             ent.pack()
             entries.append(ent)
+
+        image_label = Label(popup, text="No image selected", bg="#e8e4d9", fg="gray", font=("Arial", 10))
+        image_label.pack()
+
+        def choose_image():
+            file_path = filedialog.askopenfilename(filetypes=[("PNG files", "*.png")])
+            if file_path and file_path.lower().endswith(".png"):
+                selected_image[0] = file_path
+                image_label.config(text=os.path.basename(file_path), fg="green")
+            else:
+                messagebox.showwarning("Format Error", "Please select a .png file only.", parent=popup)
+
+        Button(popup, text="Select Image", command=choose_image, bg="#cfc8b8").pack(pady=10)
+
+        # Edit modundaysa mevcut değerleri doldur
+        if mode == "edit" and selected:
+            existing_values = tree.item(selected)["values"]
+            for i in range(len(fields)):
+                entries[i].insert(0, existing_values[i])
+            if len(existing_values) > 5 and existing_values[5] != "N/A":
+                selected_image[0] = os.path.join("Images", "Films", existing_values[5])
+                image_label.config(text=existing_values[5], fg="green")
 
         def save():
             values = [e.get().strip() for e in entries]
@@ -343,8 +417,20 @@ def show_film_window():
                     if not (0.0 <= score <= 10.0 and 0.0 <= imdb <= 10.0):
                         raise ValueError("Invalid Score")
                 except ValueError:
-                    messagebox.showwarning("Invalid", "Year must be 1900–2025 and scores between 0.0 and 10.0.", parent=popup)
+                    messagebox.showwarning("Invalid", "Year must be 1900–2025 and scores between 0.0 and 10.0.",
+                                           parent=popup)
                     return
+
+                if selected_image[0]:
+                    image_name = os.path.basename(selected_image[0])
+                    dest_path = os.path.join("Images", "Films", image_name)
+                    if mode == "add" or not os.path.exists(dest_path):
+                        os.makedirs("Images/Films", exist_ok=True)
+                        shutil.copy(selected_image[0], dest_path)
+                else:
+                    image_name = "N/A"
+
+                values.append(image_name)
 
                 if mode == "add":
                     tree.insert("", "end", values=values)
@@ -420,11 +506,18 @@ def show_to_play_window():
     entry.grid(row=0, column=0, padx=(10, 10), pady=5)
 
     columns = ("#1",)
-    tree = ttk.Treeview(play_window, columns=columns, show="headings", height=15)
+    tree_frame = Frame(play_window)
+    tree_frame.pack(padx=10, pady=(0, 10), fill="both", expand=True)
+
+    tree_scroll = Scrollbar(tree_frame)
+    tree_scroll.pack(side=RIGHT, fill=Y)
+
+    tree = ttk.Treeview(tree_frame, columns=columns, show="headings", height=15, yscrollcommand=tree_scroll.set)
+    tree_scroll.config(command=tree.yview)
+
     tree.heading("#1", text="Game Name")
     tree.column("#1", anchor="center", width=480)
-    tree.pack(padx=10, pady=(0, 10))
-
+    tree.pack(fill="both", expand=True)
 
     style = ttk.Style()
     style.theme_use("default")
@@ -448,15 +541,29 @@ def show_to_play_window():
             tree.item(item, tags=(tag,))
 
     def add_game():
-        game = entry.get().strip()
-        if game:
-            index = len(tree.get_children())
-            tag = 'evenrow' if index % 2 == 0 else 'oddrow'
-            tree.insert("", "end", values=(game,), tags=(tag,))
+        popup = Toplevel(play_window)
+        popup.title("Add Game")
+        popup.geometry("350x150")
+        popup.configure(bg="#e0f0f5")
+        popup.grab_set()
 
-            entry.delete(0, END)
-            refresh_tags()
-            save_to_play_list(tree)
+        Label(popup, text="Enter game name:", bg="#e0f0f5", font=("Arial", 11)).pack(pady=(15, 5))
+        name_entry = Entry(popup, font=("Arial", 12), width=30)
+        name_entry.pack(pady=5)
+
+        def save_game():
+            game = name_entry.get().strip()
+            if game:
+                index = len(tree.get_children())
+                tag = 'evenrow' if index % 2 == 0 else 'oddrow'
+                tree.insert("", "end", values=(game,), tags=(tag,))
+                refresh_tags()
+                save_to_play_list(tree)
+                popup.destroy()
+            else:
+                messagebox.showwarning("Empty", "Name cannot be empty.", parent=popup)
+
+        Button(popup, text="Save", command=save_game, width=10).pack(pady=(10, 5))
 
 
     def edit_game():
@@ -501,7 +608,8 @@ def show_to_play_window():
                 refresh_tags()
                 save_to_play_list(tree)
 
-    Button(top_frame, text="Add", command=add_game, width=8).grid(row=0, column=1, padx=2)
+    Button(top_frame, text="Add", command=lambda: add_game(), width=8).grid(row=0, column=1, padx=2)
+
     Button(top_frame, text="Edit", command=edit_game, width=8).grid(row=0, column=2, padx=2)
     Button(top_frame, text="Delete", command=delete_game, width=8).grid(row=0, column=3, padx=2)
 
@@ -514,6 +622,8 @@ def show_to_play_window():
                 tree.insert("", "end", values=(game,), tags=(tag,))
 
     return play_window
+
+
 
 def save_to_watch_list(tree):
     films = [tree.item(item)["values"][0] for item in tree.get_children()]
@@ -536,10 +646,18 @@ def show_to_watch_window():
     entry.grid(row=0, column=0, padx=(10, 10), pady=5)
 
     columns = ("#1",)
-    tree = ttk.Treeview(watch_window, columns=columns, show="headings", height=15)
+    tree_frame = Frame(watch_window)
+    tree_frame.pack(padx=10, pady=(0, 10), fill="both", expand=True)
+
+    tree_scroll = Scrollbar(tree_frame)
+    tree_scroll.pack(side=RIGHT, fill=Y)
+
+    tree = ttk.Treeview(tree_frame, columns=columns, show="headings", height=15, yscrollcommand=tree_scroll.set)
+    tree_scroll.config(command=tree.yview)
+
     tree.heading("#1", text="Film Name")
     tree.column("#1", anchor="center", width=480)
-    tree.pack(padx=10, pady=(0, 10))
+    tree.pack(fill="both", expand=True)
 
     style = ttk.Style()
     style.theme_use("default")
@@ -550,13 +668,28 @@ def show_to_watch_window():
     tree.tag_configure('oddrow', background="#e6e6e6")
 
     def add_film():
-        film = entry.get().strip()
-        if film:
-            index = len(tree.get_children())
-            tag = 'evenrow' if index % 2 == 0 else 'oddrow'
-            tree.insert("", "end", values=(film,), tags=(tag,))
-            entry.delete(0, END)
-            save_to_watch_list(tree)
+        popup = Toplevel(watch_window)
+        popup.title("Add Film")
+        popup.geometry("350x150")
+        popup.configure(bg="#e0f0f5")
+        popup.grab_set()
+
+        Label(popup, text="Enter film name:", bg="#e0f0f5", font=("Arial", 11)).pack(pady=(15, 5))
+        name_entry = Entry(popup, font=("Arial", 12), width=30)
+        name_entry.pack(pady=5)
+
+        def save_film():
+            film = name_entry.get().strip()
+            if film:
+                index = len(tree.get_children())
+                tag = 'evenrow' if index % 2 == 0 else 'oddrow'
+                tree.insert("", "end", values=(film,), tags=(tag,))
+                save_to_watch_list(tree)
+                popup.destroy()
+            else:
+                messagebox.showwarning("Empty", "Name cannot be empty.", parent=popup)
+
+        Button(popup, text="Save", command=save_film, width=10).pack(pady=(10, 5))
 
     def edit_film():
         selected = tree.selection()
@@ -597,6 +730,11 @@ def show_to_watch_window():
             if confirm:
                 tree.delete(selected[0])
                 save_to_watch_list(tree)
+
+
+
+
+
 
     Button(top_frame, text="Add", command=add_film, width=8).grid(row=0, column=1, padx=2)
     Button(top_frame, text="Edit", command=edit_film, width=8).grid(row=0, column=2, padx=2)
@@ -706,7 +844,9 @@ def show_about():
 
     label = Label(
         about_window,
-        text="This application is designed for your personal game and movie collection.\n\nBu uygulama kişisel oyun ve film koleksiyonunuz için tasarlanmıştır.",
+        text="This application is designed for your personal game and movie collection.\n\nBu uygulama kişisel oyun ve film koleksiyonunuz için tasarlanmıştır. \n"
+             "\n"
+             "CONTACT: cenkerefetahan@gmail.com",
         font=("Arial", 11),
         bg="#514da1",
         fg="white",
