@@ -49,8 +49,6 @@ Make sure Python is installed.
 ```bash
 python main.py
 
-📧 cenkerefetahan@gmail.com
-
 
 
 
