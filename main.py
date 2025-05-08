@@ -763,44 +763,40 @@ def show_help(lang):
 Welcome to the Games & Films Tracker!
 Here’s what you can do in this app:
 
-🎮 Games Section
-
+🎮 GAMES SECTION
 Firstly click the "joystick" image.
 You can add games with name, genre, release year, your score, Metacritic score and an image from there.
 You can edit or delete them anytime.
 Click the column titles (Year, Score, etc.) to sort: descending, ascending, or original order.
 Use the search bar to find games by name, genre, or score.
 Double click to see the game's photo and information.
+If you have a plan to play a game later, add it to the "To-Play" section.
 
-🎬 Films Section
 
+🎬 FILMS SECTION
 This time please click the "Films" image.
 Same as games, but with IMDb score instead of Metacritic.
-Year range is from 1900 to 2025.
-- If you plan to watch a movie later, add it to the "To-Watch" list so you don't forget.
+If you plan to watch a movie later, add it to the "To-Watch" list so you don't forget.
         """
     else:
         help_text = """
 Games & Films Tracker'a Hoş Geldiniz!
 Uygulamada neler yapabileceğinizi kısaca anlatalım:
 
-🎮 Oyunlar Bölümü
-
-Öncelikle oyun kolu simgesine tıklayın.
-Buradan oyunları isim, tür, çıkış yılı, kendi puanınızı, Metacritic puanı ile ekleyebilirsiniz.
+🎮 OYUNLAR BÖLÜMÜ
+Öncelikle oyun kolu simgesine tıklayınız.
+Buradan oyunun ismini, türünü, çıkış yılını, kendi puanınınızı, Metacritic puanını ile ekleyebilirsiniz.
 Dilediğinizde düzenleyebilir veya silebilirsiniz.
 Yıl, Puan vb. sütun başlıklarına tıklayarak sırayla azalan, artan ya da orijinal sıraya geçebilirsiniz.
 Arama çubuğuyla oyunları isme, türe veya puana göre bulabilirsiniz.
 Oyunun üstüne çift tıklayarak oyunun fotoğrafını ve bilgilerini görebilirsiniz.
 Gelecekte oynamak istediğiniz oyunlar için ise "To-Play" kısmını kullanabilirsiniz.
 
-🎬 Filmler Bölümü
 
+🎬 FİLMLER BÖLÜMÜ
 Film görseline tıklayınız.
-Oyunlarla aynı şekilde çalışır, sadece IMDb puanı kullanılır.
-Yıl aralığı 1900–2025'tir.
-✅ Uygulama sayesinde izlediğiniz veya oynadığınız her şeyi düzenli biçimde takip edebilirsiniz.
-     Ayrıca gelecekte izlemeyi düşündüğünüz filmleri "To-Watch" listesine ekleyerek unutmamış olursunuz.
+Oyunlarla tamamen aynı şekilde çalışır, sadece farklı olarak IMDb puanı kullanılır.
+Ayrıca gelecekte izlemeyi düşündüğünüz filmleri "To-Watch" listesine ekleyerek unutmamış olursunuz.
             """
 
     help_popup = Toplevel(window)
