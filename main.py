@@ -9,6 +9,9 @@ from Films.FilmsUtil import sort_films
 from tkinter import filedialog
 import shutil
 import re
+import sys
+import os
+from tkinter import PhotoImage
 
 
 def save_game_list(tree):
@@ -487,8 +490,17 @@ def show_film_window():
 
 def save_to_play_list(tree):
     games = [tree.item(item)["values"][0] for item in tree.get_children()]
-    with open("Data/ToPlay.json", "w", encoding="utf-8") as file:
-        json.dump(games, file, ensure_ascii=False, indent=4)
+    base_dir = os.path.dirname(sys.executable if getattr(sys, 'frozen', False) else __file__)
+    save_dir = os.path.join(base_dir, "Data")
+    os.makedirs(save_dir, exist_ok=True)  # <-- EKLENDİ
+    save_path = os.path.join(save_dir, "ToPlay.json")
+    try:
+        with open(save_path, "w", encoding="utf-8") as file:
+            json.dump(games, file, ensure_ascii=False, indent=4)
+    except Exception as e:
+        messagebox.showerror("Error", f"Could not save ToPlay.json:\n{e}")
+
+
 
 def show_to_play_window():
     play_window = Toplevel()
@@ -614,8 +626,11 @@ def show_to_play_window():
     Button(top_frame, text="Delete", command=delete_game, width=8).grid(row=0, column=3, padx=2)
 
     # JSON'dan veri yüklemek
-    if os.path.exists("Data/ToPlay.json"):
-        with open("Data/ToPlay.json", "r", encoding="utf-8") as file:
+    base_dir = os.path.dirname(sys.executable if getattr(sys, 'frozen', False) else __file__)
+    load_path = os.path.join(base_dir, "Data", "ToPlay.json")
+    if os.path.exists(load_path):
+        with open(load_path, "r", encoding="utf-8") as file:
+
             games = json.load(file)
             for i, game in enumerate(games):
                 tag = 'evenrow' if i % 2 == 0 else 'oddrow'
@@ -805,16 +820,27 @@ Ayrıca gelecekte izlemeyi düşündüğünüz filmleri "To-Watch" listesine ekl
     help_popup.configure(bg="#65a6c2")
     Label(help_popup, text=help_text, bg="#65a6c2", justify="left", font=("Times New Roman", 12), anchor="w").pack(padx=20, pady=20)
 
+def resource_path(relative_path):
+    try:
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+    return os.path.join(base_path, relative_path)
+
+
 
 window=Tk()
 window.title("Games/Films Tracker")
 window.geometry("1095x720")
-icon= PhotoImage(file='games-films.png')
+image_path = resource_path("games-films.png")
+icon = PhotoImage(file=image_path)
 window.iconphoto(True, icon)
 window.configure(background="#b5a9a8")
-game_icon = PhotoImage(file="ps4.png")
+image_path = resource_path("games-films.png")
+game_icon = PhotoImage(file=resource_path("ps4.png"))
 game_icon = game_icon.subsample(6, 6)  # Oran arttırmak
-film_icon = PhotoImage(file="filmphoto.png")
+image_path = resource_path("games-films.png")
+film_icon = PhotoImage(file=resource_path("filmphoto.png"))
 film_icon = film_icon.subsample(6, 6)
 
 help_button = Button(window, text="Help", bg="#756f6e", fg="white", font=("Arial", 10, "bold"), width=7, height=2)
@@ -869,7 +895,7 @@ label = tk.Label(window, text="Welcome to the Games/Films Tracker!",
                  pady=3)
 label.pack(pady=15)
 
-photo = PhotoImage(file='games-films-tracker.png')
+photo = PhotoImage(file=resource_path('games-films-tracker.png'))
 photo = photo.subsample(2, 2)
 
 image_label = tk.Label(window, image=photo, bg="#b5a9a8")
