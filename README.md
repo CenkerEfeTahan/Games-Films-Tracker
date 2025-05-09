@@ -43,11 +43,25 @@ Games-Films-Tracker/
 ├── README.md # You’re reading it
 
 
-## 🖥 How to Run
-Make sure Python is installed.
+📁 Installation:
 
-```bash
-python main.py
+Extract the ZIP file
+Double-click the main.exe file
+The program will launch. Data is stored in the Data folder
+
+💡 Notes:
+If your antivirus blocks it, please mark main.exe as a trusted file
+This application is for Windows only and does not require an internet connection
+
+TÜRKÇE///
+📁 Kurulum:
+1. ZIP dosyasını çıkartın
+2. `main.exe` dosyasına çift tıklayın
+3. Program açılır. Veriler `Data` klasöründe saklanır.
+
+💡 Notlar:
+- Eğer antivirüs engellerse, `main.exe`yi güvenilir olarak işaretleyin.
+- Uygulama Windows içindir ve internet gerektirmez.
 
 
 
